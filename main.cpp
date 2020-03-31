@@ -10,15 +10,19 @@ using namespace std;
 typedef const string CSTR;
 
 const int BUFSIZE =  1 << 25;
-double totalSize;
-double finishedSize;
+const int INBUFSIZE =  1 << 21;
+const int OUTBUFSIZE =  1 << 21;
+double totalSize = 0 ;
+double  finishedSize = 0 ;
 char *buff;
+char *inbuff;
+char *outbuff;
 void copyFile(CSTR& srcFile,CSTR& dstFile);
 string srcPath;
 string dstPath;
-time_t beginTime;
+time_t beginTime = time(NULL);
 
-int getFileSize(CSTR& filename){
+long long getFileSize(CSTR& filename){
     struct stat64 sb;
     if (lstat64(filename.c_str(),&sb) == -1){
         //printf("%s lstat error %d  ! \n" ,filename.c_str(), errno);
@@ -90,7 +94,7 @@ MyDir* enum_dir(CSTR& s){
     dirinfo->dirname = dir;
 
     dirent * direntp;
-    int filesize;
+    long long  filesize;
     while( (direntp = readdir(dirp)) != NULL){
         if (strcmp (direntp->d_name , "..") == 0 ||
             strcmp (direntp->d_name ,".") == 0){
@@ -158,6 +162,8 @@ void showStatus(){
     time_t cur = time(NULL);
     cur = cur - beginTime ;
     double speed = finishedSize / cur;
+    //fprintf(stderr,"finishedSize: %f , totalSize : %f \n",
+    //       finishedSize, totalSize);
     fprintf(stderr, 
             "\r F: %.2f \%!  S: %.2f MB  R: %.2f  E: %d ", 
             finishedSize * 100 / totalSize,
@@ -182,7 +188,7 @@ void copyDir(CSTR& srcDir, CSTR& dstDir){
 void copyFile(CSTR& srcFile,CSTR& dstFile){
     cout << "srcFile:"<<srcFile << endl
         << "dstFile:" << dstFile << endl;;
-   int  size = getFileSize(srcFile);
+   long long  size = getFileSize(srcFile);
    if (size == -1){
        printf(" srcFile %s error %d \n", srcFile.c_str(),errno);
        return ;
@@ -193,7 +199,7 @@ void copyFile(CSTR& srcFile,CSTR& dstFile){
        printf("%s open error!",srcFile);
        return ;
    }
-   int dsize = getFileSize(dstFile);
+   long long  dsize = getFileSize(dstFile);
    if (dsize >= 0){
        printf("%s exists! \n",dstFile.c_str());
        return;
@@ -210,8 +216,11 @@ void copyFile(CSTR& srcFile,CSTR& dstFile){
        }
    }
   cout << srcFile << " size : " << size << endl;
+   //dst << src.rdbuf();
    int rsize = size > BUFSIZE ? BUFSIZE : size;
    int count = 0;
+   src.rdbuf()->pubsetbuf(inbuff,INBUFSIZE);
+   dst.rdbuf()->pubsetbuf(outbuff,OUTBUFSIZE); 
    while(src){
        src.read(buff,rsize);
        finishedSize += rsize;
@@ -244,6 +253,8 @@ int main(int argc, char * argv[]){
         return 0;
     //printf("%s\n",filename.c_str());
     buff = new char [BUFSIZE];
+    inbuff = new char [INBUFSIZE];
+    outbuff = new char [OUTBUFSIZE];
     if (buff == NULL){
         printf("error new \n");
         return errno;
@@ -261,6 +272,8 @@ int main(int argc, char * argv[]){
         copyFile(srcFilename, dstFilename);
     }
     printf("\n time : %d \n",time(NULL) - beginTime);
+    delete outbuff;
+    delete inbuff;
     delete buff;
     return 0;
 }
