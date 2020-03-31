@@ -6,20 +6,26 @@
 #include <unistd.h>
 #include <iostream>
 #include <fstream>
+#include <signal.h>
+#include <vector>
 using namespace std;
 typedef const string CSTR;
-
+class MyDir;
 const int BUFSIZE =  1 << 25;
 const int INBUFSIZE =  1 << 21;
 const int OUTBUFSIZE =  1 << 21;
 double totalSize = 0 ;
 double  finishedSize = 0 ;
-char *buff;
-char *inbuff;
-char *outbuff;
+char *buff = NULL;
+char *inbuff = NULL;
+char *outbuff = NULL;
+MyDir *pMyDir = NULL;
 void copyFile(CSTR& srcFile,CSTR& dstFile);
 string srcPath;
 string dstPath;
+vector<CSTR*> g_str;
+vector<ifstream *> g_ifstream;
+vector<ofstream *> g_ofstream;
 time_t beginTime = time(NULL);
 
 long long getFileSize(CSTR& filename){
@@ -43,18 +49,22 @@ struct MyDir{
     list<MyDir*> sub_dir;
     list<pair<string,int>> file;
     void copy(CSTR& dst){
+        //g_str.push_back(&dst);
         string path;
+        g_str.push_back(&path);
         if (dst != ".")
             path = dst + "/" + dirname;
         else
             path = dirname;
-        for (auto a : file){
+        for (auto const& a : file){
             copyFile(srcPath + "/" + path + "/" + a.first, 
                      dstPath + "/" + path + "/" + a.first);
         }
-        for (auto a : sub_dir){
+        for (auto const& a : sub_dir){
             a->copy(path);
         }
+        g_str.pop_back();
+        //g_str.pop_back();
     }
     void p(CSTR& path){
         cout <<  dirname << endl;
@@ -67,9 +77,9 @@ struct MyDir{
         for (auto a : sub_dir)
             a->p(path + "/" + dirname);
     }
-    void del(){
+
+    ~MyDir(){
         for (auto a : sub_dir){
-            a->del();
             //printf("delete %s \n" , a->dirname.c_str());
             delete a;
         }
@@ -163,9 +173,9 @@ void showStatus(){
     cur = cur - beginTime ;
     double speed = finishedSize / cur;
     //fprintf(stderr,"finishedSize: %f , totalSize : %f \n",
-    //       finishedSize, totalSize);
+    //      finishedSize, totalSize);
     fprintf(stderr, 
-            "\r F: %.2f \%!  S: %.2f MB  R: %.2f  E: %d ", 
+            "\r F: %.2f \%!  S: %.2f MB  R: %.0f s  E: %d s", 
             finishedSize * 100 / totalSize,
             speed / (1 << 20) , ( totalSize - finishedSize ) / speed,
             cur);
@@ -173,7 +183,7 @@ void showStatus(){
 
 }
 void copyDir(CSTR& srcDir, CSTR& dstDir){
-    MyDir * p = enum_dir(srcDir.c_str());
+     pMyDir = enum_dir(srcDir.c_str());
     //p->dirname = srcDir;
     srcPath = getParentPath(srcDir);
     //cout << "srcPath : " << srcPath << endl;
@@ -181,9 +191,8 @@ void copyDir(CSTR& srcDir, CSTR& dstDir){
     //cout << "dstPath:" << dstPath << endl;
     //p->p(".");
     beginTime = time(NULL);
-    p->copy(".");
-    p->del();
-    delete p;
+    pMyDir->copy(".");
+    delete pMyDir;
 }
 void copyFile(CSTR& srcFile,CSTR& dstFile){
     cout << "srcFile:"<<srcFile << endl
@@ -215,6 +224,10 @@ void copyFile(CSTR& srcFile,CSTR& dstFile){
            return ;
        }
    }
+   g_ifstream.push_back(&src);
+   g_ofstream.push_back(&dst);
+   g_str.push_back(&srcFile);
+   g_str.push_back(&dstFile);
   cout << srcFile << " size : " << size << endl;
    //dst << src.rdbuf();
    int rsize = size > BUFSIZE ? BUFSIZE : size;
@@ -237,9 +250,39 @@ void copyFile(CSTR& srcFile,CSTR& dstFile){
    }
    src.close();
    dst.close();
+   g_ifstream.pop_back();
+   g_ofstream.pop_back();
+   g_str.pop_back();
+   g_str.pop_back();
 }
-
+void int_handler(int) {
+    if (buff != NULL) delete [] buff;
+    if (inbuff != NULL) delete [] inbuff;
+    if (outbuff != NULL) delete [] outbuff;
+    if (pMyDir != NULL ) delete pMyDir; 
+    cout << "******" << endl;
+    for (auto a : g_str){
+        cout << "delete " << *a << endl;
+        a->~string();
+    }
+    for (auto a : g_ifstream){
+        a->close();
+    }
+    for (auto a : g_ofstream) {
+        a->close();
+    }
+    cout << "******" << endl;
+    //srcPath.~string();
+    //dstPath.~string();
+    /*
+    g_str.~vector<CSTR*>();
+    g_ifstream.~vector<ifstream*>();
+    g_ofstream.~vector<ofstream*>();
+    */
+    exit(0);
+}
 int main(int argc, char * argv[]){
+    sigset(SIGINT, int_handler);
     struct stat sb;
     char buf[255];
     getcwd(buf,255); 
@@ -249,8 +292,9 @@ int main(int argc, char * argv[]){
     if (argc > 2 ){
         srcFilename = argv[1];
         dstFilename = argv[2]; 
-    }else
+    }else{
         return 0;
+    }
     //printf("%s\n",filename.c_str());
     buff = new char [BUFSIZE];
     inbuff = new char [INBUFSIZE];
@@ -259,6 +303,8 @@ int main(int argc, char * argv[]){
         printf("error new \n");
         return errno;
     }
+    g_str.push_back(&srcFilename);
+    g_str.push_back(&dstFilename);
     if (isDir(srcFilename)) {
         //cout << "dir copy " << endl;
         removeLast(srcFilename);
@@ -272,8 +318,10 @@ int main(int argc, char * argv[]){
         copyFile(srcFilename, dstFilename);
     }
     printf("\n time : %d \n",time(NULL) - beginTime);
-    delete outbuff;
-    delete inbuff;
-    delete buff;
+    delete [] outbuff;
+    delete [] inbuff;
+    delete [] buff;
+    g_str.pop_back();
+    g_str.pop_back();
     return 0;
 }
