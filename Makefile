@@ -1,4 +1,4 @@
-mcopy:main.cpp
-	g++ main.cpp -D FILE_OFFSET_BITS=64 -o mcopy
+mcp:main.cpp
+	g++ main.cpp -D FILE_OFFSET_BITS=64 -o mcp
 	rm -rf Nat*
-	valgrind ./mcopy /home/bao/Downloads/Nature.Love* ./
+	#valgrind -s ./mcopy /home/bao/Downloads/Nature.Love* ./

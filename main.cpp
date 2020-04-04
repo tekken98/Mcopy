@@ -19,7 +19,7 @@ double  finishedSize = 0 ;
 char *buff = NULL;
 char *inbuff = NULL;
 char *outbuff = NULL;
-MyDir *pMyDir = NULL;
+MyDir const *pMyDir = NULL;
 void copyFile(CSTR& srcFile,CSTR& dstFile);
 string srcPath;
 string dstPath;
@@ -46,9 +46,9 @@ bool isDir(CSTR& path){
 }
 struct MyDir{
     string dirname;
-    list<MyDir*> sub_dir;
+    list<MyDir const *> sub_dir;
     list<pair<string,int>> file;
-    void copy(CSTR& dst){
+    void copy(CSTR& dst) const{
         //g_str.push_back(&dst);
         string path;
         g_str.push_back(&path);
@@ -66,7 +66,7 @@ struct MyDir{
         g_str.pop_back();
         //g_str.pop_back();
     }
-    void p(CSTR& path){
+    void p(CSTR& path) const {
         cout <<  dirname << endl;
         for (auto a : file){
             cout << "  " << path +"/" +  dirname + "/" + a.first 
@@ -85,7 +85,7 @@ struct MyDir{
         }
     }
 };
-MyDir* enum_dir(CSTR& s){
+MyDir const * enum_dir(CSTR& s){
     DIR * dirp = opendir(s.c_str());
     list<string> dirlist;
     if (dirp == NULL){
@@ -129,7 +129,7 @@ MyDir* enum_dir(CSTR& s){
     }
     closedir(dirp);
     for (auto a : dirlist){
-        MyDir * p = enum_dir(s + "/" + a);
+        MyDir const * p = enum_dir(s + "/" + a);
         if (p != NULL)
             dirinfo->sub_dir.push_back(p);
     }
@@ -262,7 +262,7 @@ void int_handler(int) {
     if (pMyDir != NULL ) delete pMyDir; 
     cout << "******" << endl;
     for (auto a : g_str){
-        cout << "delete " << *a << endl;
+        //cout << "delete " << *a << endl;
         a->~string();
     }
     for (auto a : g_ifstream){
@@ -281,6 +281,14 @@ void int_handler(int) {
     */
     exit(0);
 }
+void help(){
+    cout 
+        << "\n"
+        << "\tmcp srcfile [ dstfile | dstdir ] \n"
+        << "\tmcp srcdir dstdir"
+        << "\n"
+        << endl;
+}
 int main(int argc, char * argv[]){
     sigset(SIGINT, int_handler);
     struct stat sb;
@@ -293,6 +301,7 @@ int main(int argc, char * argv[]){
         srcFilename = argv[1];
         dstFilename = argv[2]; 
     }else{
+        help();
         return 0;
     }
     //printf("%s\n",filename.c_str());
@@ -317,7 +326,7 @@ int main(int argc, char * argv[]){
         beginTime = time(NULL);
         copyFile(srcFilename, dstFilename);
     }
-    printf("\n time : %d \n",time(NULL) - beginTime);
+    printf("\ntime : %d \n",time(NULL) - beginTime);
     delete [] outbuff;
     delete [] inbuff;
     delete [] buff;
