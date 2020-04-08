@@ -289,8 +289,13 @@ void int_handler(int) {
 void help(){
     cout 
         << "\n"
-        << "\tmcp srcfile [ dstfile | dstdir ] \n"
-        << "\tmcp srcdir dstdir"
+        <<"Copy recursive with status showing \n"
+        <<"\n"
+        << "\tmcp [Options] srcfile [ dstfile | dstdir ] \n"
+        << "\tmcp [Options] srcdir dstdir \n"
+        <<"\n"
+        << "Options:\n"
+        << "\t-r \t\t\t replace"
         << "\n"
         << endl;
 }
