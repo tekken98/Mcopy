@@ -8,6 +8,7 @@
 #include <fstream>
 #include <signal.h>
 #include <vector>
+#include "opt.h"
 using namespace std;
 typedef const string CSTR;
 class MyDir;
@@ -26,6 +27,7 @@ string dstPath;
 vector<CSTR*> g_str;
 vector<ifstream *> g_ifstream;
 vector<ofstream *> g_ofstream;
+Opt * g_opt = NULL;
 time_t beginTime = time(NULL);
 
 long long getFileSize(CSTR& filename){
@@ -210,8 +212,10 @@ void copyFile(CSTR& srcFile,CSTR& dstFile){
    }
    long long  dsize = getFileSize(dstFile);
    if (dsize >= 0){
-       printf("%s exists! \n",dstFile.c_str());
-       return;
+       if (!g_opt->has('r')){
+           printf("%s exists! \n",dstFile.c_str());
+           return;
+       }
    }
    ofstream dst(dstFile,ofstream::binary);
    if (!dst.good()){
@@ -271,6 +275,7 @@ void int_handler(int) {
     for (auto a : g_ofstream) {
         a->close();
     }
+    delete g_opt;
     cout << "******" << endl;
     //srcPath.~string();
     //dstPath.~string();
@@ -297,9 +302,12 @@ int main(int argc, char * argv[]){
     //string filename{buf};
     string srcFilename("");
     string dstFilename("");
-    if (argc > 2 ){
-        srcFilename = argv[1];
-        dstFilename = argv[2]; 
+    char optstring[] = "srp";
+    Opt opt(argc,argv,optstring);
+    g_opt = &opt;
+    if (opt.argC() > 1 ){
+        srcFilename = opt.argV(0);
+        dstFilename = opt.argV(1);
     }else{
         help();
         return 0;
