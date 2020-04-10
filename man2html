@@ -1,0 +1,12 @@
+#!/bin/bash
+if [[ $1 == "" ]] ; then
+    echo man2html bash
+    exit;
+fi
+d=/tmp
+tmpfile=$d/a.htm
+man -L en $1 > $tmpfile
+sed -n '/\(^\([A-Z]\+\s*\)\+\)$/s//<a href="#\1">\1<\/a><p>/p' $tmpfile> pre.htm
+sed '{s/</\&lt;/g}; {s/>/\&gt;/g}' $tmpfile | sed '/\(^\([A-Z]\+\s*\)\+\)$/s//<pre><text id="\1">\1<\/text>/'>main.htm
+cat pre.htm main.htm > $1.htm
+firefox $1.htm

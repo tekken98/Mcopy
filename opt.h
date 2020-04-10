@@ -13,16 +13,16 @@ class Opt{
     int argc;
     char ** const argv;
     bool invalid=false;
-    shared_ptr<map<char,str>> m;
+    shared_ptr<map<char,str>> m = shared_ptr<map<char,str>>( new map<char,str>());
     vector<str> a;
     public:
+    Opt(int c, char ** const v): argc(c),argv(v){};
     Opt(int c, char ** const v, const str& optstr) : argc(c), argv(v)
     {
-        getOpt(optstr);
+        parse(optstr);
     };
-    void getOpt(const str& optstr)
+    void parse(const str& optstr)
     {
-        map<char,str>* ret = new map<char,str>();
         int opt;
         int len = optstr.length();
         while((opt = getopt(argc,argv,optstr.c_str())) != -1){
@@ -30,9 +30,11 @@ class Opt{
             for (i = 0; i < len ;i++){
                 if (opt == optstr[i]){
                     if (optstr[i+1] == ':'){
-                        ret->insert(make_pair(static_cast<char>(opt),optarg));
+                        (*m)[opt] = optarg;
+                       // m->insert(make_pair(static_cast<char>(opt),optarg));
                     }else{
-                        ret->insert(make_pair(static_cast<char>(opt),""));
+                        (*m)[opt] = "";
+                        //m->insert(make_pair(static_cast<char>(opt),""));
                     }
                     break;
                 }
@@ -41,7 +43,6 @@ class Opt{
                 }
             }
         }
-        m = shared_ptr<map<char,str>>(ret);
         for (int i = optind; i < argc ;i++){
             a.push_back(argv[i]);
         }
@@ -71,6 +72,12 @@ class Opt{
         if (has(c))
             return m->find(c)->second;
         return "";
+    }
+    void setOpt(char c , const str& s){
+        m->insert(make_pair(c,s));
+    }
+    str getOpt(char c){
+        return value(c);
     }
 };
 #endif

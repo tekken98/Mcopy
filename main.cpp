@@ -38,6 +38,27 @@ long long getFileSize(CSTR& filename){
     }
     return sb.st_size;
 }
+time_t getFileModifyTime(CSTR& filename){
+    struct stat64 sb;
+    if (lstat64(filename.c_str(),&sb) == -1){
+        //printf("%s lstat error %d  ! \n" ,filename.c_str(), errno);
+        return -1;
+    }
+    return sb.st_mtime;
+}
+bool newer(CSTR& src, CSTR& dst){
+    time_t srctime = getFileModifyTime(src);
+    time_t dsttime = getFileModifyTime(dst);
+    printf("%ld %ld \n",srctime,srctime);
+    if (( dsttime < srctime) && (srctime != -1)){
+        printf("newer file \n");
+        return true;
+    }
+    return false;
+
+            
+
+}
 bool isDir(CSTR& path){
     struct stat sb;
     if (lstat(path.c_str(),&sb) == -1){
@@ -213,8 +234,12 @@ void copyFile(CSTR& srcFile,CSTR& dstFile){
    long long  dsize = getFileSize(dstFile);
    if (dsize >= 0){
        if (!g_opt->has('r')){
-           printf("%s exists! \n",dstFile.c_str());
-           return;
+           if (!g_opt->has('u')){
+               printf("%s exists! \n",dstFile.c_str());
+               return;
+           }
+           if ((newer(srcFile,dstFile) == false) && (size == dsize))
+               return;
        }
    }
    ofstream dst(dstFile,ofstream::binary);
@@ -232,7 +257,7 @@ void copyFile(CSTR& srcFile,CSTR& dstFile){
    g_ofstream.push_back(&dst);
    g_str.push_back(&srcFile);
    g_str.push_back(&dstFile);
-  cout << srcFile << " size : " << size << endl;
+   cout << srcFile << " size : " << size << endl;
    //dst << src.rdbuf();
    int rsize = size > BUFSIZE ? BUFSIZE : size;
    int count = 0;
@@ -295,7 +320,8 @@ void help(){
         << "\tmcp [Options] srcdir dstdir \n"
         <<"\n"
         << "Options:\n"
-        << "\t-r \t\t\t replace"
+        << "\t-r \t\t\t replace" << "\n"
+        << "\t-u \t\t\t update newer or size not equal " << "\n"
         << "\n"
         << endl;
 }
@@ -307,7 +333,7 @@ int main(int argc, char * argv[]){
     //string filename{buf};
     string srcFilename("");
     string dstFilename("");
-    char optstring[] = "srp";
+    char optstring[] = "rsup";
     Opt opt(argc,argv,optstring);
     g_opt = &opt;
     if (opt.argC() > 1 ){
